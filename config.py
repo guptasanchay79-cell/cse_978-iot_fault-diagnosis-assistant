@@ -92,6 +92,13 @@ TEMP_VALID_RANGE: tuple[float, float] = (-20.0, 150.0)
 VIB_VALID_RANGE: tuple[float, float] = (0.0, 50.0)
 PRESSURE_VALID_RANGE: tuple[float, float] = (0.0, 25.0)
 
+# Flatline detection epsilon: if max reading - min reading across the window
+# is less than this threshold, the sensor is deemed frozen / flatlined.
+SENSOR_FLATLINE_EPSILON: float = 0.001
+
+# Temperature rapid climb threshold (°C per sample step)
+TEMP_RATE_OF_CLIMB_THRESHOLD: float = 1.0
+
 # ==============================================================================
 # 4. Fault Detection & Pipeline Cooldown
 # ==============================================================================
