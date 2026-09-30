@@ -33,6 +33,27 @@ DEFAULT_DEVICE_ID: str = "pump_centrifugal_01"
 # Telemetry streaming interval in seconds (1 message per second)
 TELEMETRY_PUBLISH_INTERVAL: float = 1.0
 
+# Supported operational and fault simulation modes
+FAULT_MODE_NORMAL: str = "normal"
+FAULT_MODE_OVERHEATING: str = "overheating"
+FAULT_MODE_BEARING_WEAR: str = "bearing_wear"
+FAULT_MODE_PRESSURE_DROP: str = "pressure_drop"
+FAULT_MODE_SENSOR_FAILURE: str = "sensor_failure"
+
+ALL_FAULT_MODES: list[str] = [
+    FAULT_MODE_NORMAL,
+    FAULT_MODE_OVERHEATING,
+    FAULT_MODE_BEARING_WEAR,
+    FAULT_MODE_PRESSURE_DROP,
+    FAULT_MODE_SENSOR_FAILURE,
+]
+
+# Physical simulation parameters for smooth random-walk telemetry
+SIM_NOISE_STD_TEMP: float = 0.35      # Small thermal noise (°C)
+SIM_NOISE_STD_VIB: float = 0.08       # Mechanical vibration noise (mm/s)
+SIM_NOISE_STD_PRESSURE: float = 0.06  # Hydraulic pressure noise (bar)
+SIM_MEAN_REVERSION_RATE: float = 0.15 # Restoring force towards setpoint
+
 # ==============================================================================
 # 3. Machine Physical Parameters & Thresholds (Centrifugal Pump)
 # ==============================================================================
