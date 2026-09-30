@@ -1,0 +1,36 @@
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Virtual Environment
+.venv/
+env/
+venv/
+ENV/
+
+# Local LLM Models and large binary weights
+models/
+*.gguf
+*.bin
+*.pt
+
+# RAG Index cache and embeddings
+rag/index_cache/
+.chroma/
+
+# Telemetry run logs and runtime data (preserve structure with .gitkeep)
+data/*.log
+data/*.jsonl
+data/*.csv
+!data/.gitkeep
+
+# IDE, OS, and temporary files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.tmp
+.env
