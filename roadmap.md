@@ -225,15 +225,15 @@ Design rules (non-negotiable):
 
 ## Stage checklist
 
-- [ ] Stage 0 — Clarify
-- [ ] Stage 1 — Project baseline
-- [ ] Stage 2 — MQTT pipeline
-- [ ] Stage 3 — Simulator with fault modes
-- [ ] Stage 4 — Fault detection
-- [ ] Stage 5 — Knowledge base
-- [ ] Stage 6 — RAG retrieval
-- [ ] Stage 7 — Local LLM
-- [ ] Stage 8 — Integration
-- [ ] Stage 9 — Interface (if approved)
-- [ ] Stage 10 — Testing and evaluation
-- [ ] Stage 11 — Documentation
+- [x] Stage 0 — Clarify
+- [x] Stage 1 — Project baseline
+- [x] Stage 2 — MQTT pipeline
+- [x] Stage 3 — Simulator with fault modes
+- [x] Stage 4 — Fault detection
+- [x] Stage 5 — Knowledge base
+- [x] Stage 6 — RAG retrieval
+- [x] Stage 7 — Local LLM
+- [x] Stage 8 — Integration
+- [x] Stage 9 — Interface (CLI approved and implemented)
+- [x] Stage 10 — Testing and evaluation
+- [x] Stage 11 — Documentation

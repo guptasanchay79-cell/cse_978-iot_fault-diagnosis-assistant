@@ -25,9 +25,8 @@ from mqtt.sensor_simulator import PumpTelemetrySimulator
 class TestEndToEndIntegration(unittest.TestCase):
     """End-to-end integration tests for full diagnosis pipeline."""
 
-    @classmethod
-    def setUpClass(cls):
-        cls.pipeline = FaultDiagnosisPipeline(cooldown_seconds=1.0)
+    def setUp(self):
+        self.pipeline = FaultDiagnosisPipeline(cooldown_seconds=1.0)
         # Clear log files for clean test run
         jsonl = DATA_DIR / "diagnoses_log.jsonl"
         if jsonl.exists():
