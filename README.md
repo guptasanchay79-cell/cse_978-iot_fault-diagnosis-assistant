@@ -208,6 +208,20 @@ Generate the empirical 30-trial benchmark report:
 .\.venv\Scripts\python.exe scripts/evaluate_system.py
 ```
 
+### E. Run Containerized Database Persistence Layer (Optional)
+The database operates as a **persistence layer only**. The application functions with in-memory buffers and local JSONL logging if Docker is offline.
+```powershell
+# Start PostgreSQL persistence container
+docker compose up -d
+
+# Verify container status
+docker compose ps
+
+# Import existing historical diagnoses
+.\.venv\Scripts\python.exe scripts/import_jsonl_to_db.py
+```
+See [docs/database.md](file:///c:/Users/SANCHAY/OneDrive/Desktop/cse_978%20iot_fault%20diagnosis%20assistant/docs/database.md) for full architectural documentation and schema details.
+
 ---
 
 ## 6. Empirical Evaluation Scorecard
@@ -277,6 +291,7 @@ Measured from 30 automated trials documented in [`docs/evaluation.md`](file:///c
 - [docs/college_project_report.md](file:///c:/Users/SANCHAY/OneDrive/Desktop/files/docs/college_project_report.md) — Complete University Engineering Project Report (Stage 11)
 - [docs/presentation_slides_outline.md](file:///c:/Users/SANCHAY/OneDrive/Desktop/files/docs/presentation_slides_outline.md) — Slide-by-Slide Viva Defense PPT Outline (Stage 11)
 - [docs/resume_bullet_points.md](file:///c:/Users/SANCHAY/OneDrive/Desktop/files/docs/resume_bullet_points.md) — Tailored ATS-Friendly Professional Resume Bullets (Stage 11)
+- [docs/database.md](file:///c:/Users/SANCHAY/OneDrive/Desktop/cse_978%20iot_fault%20diagnosis%20assistant/docs/database.md) — Database Persistence Layer Architecture & Operations
 
 ---
 

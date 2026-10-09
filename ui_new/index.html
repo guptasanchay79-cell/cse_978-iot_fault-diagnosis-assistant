@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P_311 — IoT Fault Diagnosis</title>
+
+  <!-- Fonts: Space Grotesk (text), Space Mono (data + labels), Doto (hero only).
+       Doto is a separate request so a failure there cannot take the other two down. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Doto:wght@400..900&display=swap" rel="stylesheet">
+
+  <!-- Apply saved theme before first paint (no flash) -->
+  <script>
+    (function () {
+      var t = "dark";
+      try { t = localStorage.getItem("p311-theme") || "dark"; } catch (e) {}
+      document.documentElement.setAttribute("data-theme", t);
+    })();
+  </script>
+
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="shell">
+
+    <!-- TERTIARY: system info pinned to the top edge -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-id">P_311</span>
+        <span class="label">IoT fault diagnosis</span>
+      </div>
+
+      <div class="topbar-right">
+        <span class="label status-inline">
+          <i class="dot" id="dot-stream"></i>Stream <span id="val-stream">Connecting</span>
+        </span>
+        <span class="label status-inline">MQTT :1883</span>
+        <span class="label status-inline">Local <span id="live-clock" class="mono-num">--:--:--</span></span>
+
+        <button class="switch" id="theme-toggle" type="button" role="switch" aria-checked="false" aria-label="Light theme">
+          <span class="label sw-dark">Dark</span>
+          <span class="switch-track"><i class="switch-knob"></i></span>
+          <span class="label sw-light">Light</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="layout">
+
+      <!-- LEFT: machine state + instruments -->
+      <section class="col-main">
+
+        <!-- PRIMARY: the one thing you see first -->
+        <div class="hero">
+          <p class="label">Centrifugal slurry pump · API 610 · ISO 10816</p>
+          <h1 class="condition-badge condition-healthy" id="diag-condition-badge">Nominal</h1>
+          <p class="label dim" id="diag-meta-time">Monitoring — no active fault</p>
+        </div>
+
+        <!-- SECONDARY: live readings -->
+        <div class="readings">
+
+          <div class="reading" id="card-temp" data-state="normal">
+            <span class="label">Temperature · RTD</span>
+            <span class="kpi-status-badge status-normal" id="badge-temp">NORMAL</span>
+            <div class="reading-body">
+              <div class="reading-value">
+                <span class="reading-num" id="val-temp">--</span><span class="reading-unit">°C</span>
+              </div>
+              <div class="seg" id="bar-temp" aria-hidden="true"></div>
+            </div>
+            <p class="label dim reading-limits">Warn ≥ 70 · Crit ≥ 75</p>
+          </div>
+
+          <div class="reading" id="card-vib" data-state="normal">
+            <span class="label">Vibration · RMS</span>
+            <span class="kpi-status-badge status-normal" id="badge-vib">ZONE A/B GOOD</span>
+            <div class="reading-body">
+              <div class="reading-value">
+                <span class="reading-num" id="val-vib">--</span><span class="reading-unit">mm/s</span>
+              </div>
+              <div class="seg" id="bar-vib" aria-hidden="true"></div>
+            </div>
+            <p class="label dim reading-limits">Alert ≥ 2.8 · Danger ≥ 4.5</p>
+          </div>
+
+          <div class="reading" id="card-press" data-state="normal">
+            <span class="label">Discharge pressure</span>
+            <span class="kpi-status-badge status-normal" id="badge-press">NOMINAL</span>
+            <div class="reading-body">
+              <div class="reading-value">
+                <span class="reading-num" id="val-press">--</span><span class="reading-unit">bar</span>
+              </div>
+              <div class="seg" id="bar-press" aria-hidden="true"></div>
+            </div>
+            <p class="label dim reading-limits">Nominal 4.5–5.5 · Low &lt; 3.0</p>
+          </div>
+
+        </div>
+
+        <!-- Trace -->
+        <div class="trace">
+          <div class="block-head">
+            <span class="label">Live trace · last 30 samples</span>
+            <div class="legend">
+              <span class="label lg"><i class="lg-line lg-solid"></i>Temp °C</span>
+              <span class="label lg"><i class="lg-line lg-dash"></i>Vib mm/s</span>
+              <span class="label lg"><i class="lg-line lg-dot"></i>Press bar</span>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="telemetryChart" aria-label="Live telemetry trace"></canvas>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- RIGHT: controls, diagnosis, log -->
+      <section class="col-side">
+
+        <!-- Fault injection -->
+        <div class="block">
+          <div class="block-head">
+            <span class="label">Fault injection</span>
+            <span class="label dim">Simulator</span>
+          </div>
+
+          <div class="mode-grid">
+            <button class="btn-mode active" id="btn-mode-normal" type="button" aria-pressed="true" onclick="setMode('normal')">
+              <span class="btn-top"><span class="btn-idx">01</span><span class="btn-led"></span></span>
+              <span class="btn-title">Normal baseline</span>
+              <span class="btn-desc">ISO zone A/B</span>
+            </button>
+
+            <button class="btn-mode" id="btn-mode-bearing" type="button" aria-pressed="false" onclick="setMode('bearing_wear')">
+              <span class="btn-top"><span class="btn-idx">02</span><span class="btn-led"></span></span>
+              <span class="btn-title">Bearing wear</span>
+              <span class="btn-desc">Vib &gt; 4.5 mm/s</span>
+            </button>
+
+            <button class="btn-mode" id="btn-mode-overheat" type="button" aria-pressed="false" onclick="setMode('overheating')">
+              <span class="btn-top"><span class="btn-idx">03</span><span class="btn-led"></span></span>
+              <span class="btn-title">Stator overheating</span>
+              <span class="btn-desc">Temp &gt; 75 °C</span>
+            </button>
+
+            <button class="btn-mode" id="btn-mode-pressure" type="button" aria-pressed="false" onclick="setMode('pressure_drop')">
+              <span class="btn-top"><span class="btn-idx">04</span><span class="btn-led"></span></span>
+              <span class="btn-title">Pressure drop</span>
+              <span class="btn-desc">Discharge &lt; 3.0 bar</span>
+            </button>
+
+            <button class="btn-mode" id="btn-mode-disconnect" type="button" aria-pressed="false" onclick="setMode('sensor_failure', 'disconnect')">
+              <span class="btn-top"><span class="btn-idx">05</span><span class="btn-led"></span></span>
+              <span class="btn-title">RTD disconnect</span>
+              <span class="btn-desc">Reads −999 °C</span>
+            </button>
+
+            <button class="btn-mode" id="btn-mode-flatline" type="button" aria-pressed="false" onclick="setMode('sensor_failure', 'flatline')">
+              <span class="btn-top"><span class="btn-idx">06</span><span class="btn-led"></span></span>
+              <span class="btn-title">ADC flatline</span>
+              <span class="btn-desc">Zero-variance freeze</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Diagnosis -->
+        <div class="block">
+          <div class="block-head">
+            <span class="label">Diagnosis</span>
+            <span class="label dim">RAG + local LLM</span>
+          </div>
+
+          <div id="empty-state-view" class="empty-line">
+            <span class="label dim">[ No fault logged — inject one above ]</span>
+          </div>
+
+          <div class="hidden" id="active-report-view">
+            <p class="label dim" id="report-meta"></p>
+
+            <article class="sec">
+              <p class="label sec-label"><span>01</span>Likely fault</p>
+              <p class="sec-content sec-lead" id="report-likely-fault">--</p>
+            </article>
+
+            <article class="sec">
+              <p class="label sec-label"><span>02</span>Evidence</p>
+              <p class="sec-content" id="report-why">--</p>
+            </article>
+
+            <article class="sec">
+              <p class="label sec-label"><span>03</span>Recommended checks</p>
+              <p class="sec-content" id="report-checks">--</p>
+            </article>
+
+            <article class="sec">
+              <p class="label sec-label"><span>04</span>Confidence &amp; limits</p>
+              <p class="sec-content" id="report-confidence">--</p>
+            </article>
+
+            <div class="sources">
+              <p class="label">Grounded in</p>
+              <ul class="source-list" id="report-sources"></ul>
+            </div>
+          </div>
+
+          <div class="block-foot">
+            <span class="label dim" id="diag-latency">Inference latency: --</span>
+            <span class="label dim" id="diag-runtime-tag">Runtime: --</span>
+          </div>
+        </div>
+
+        <!-- Incident log -->
+        <div class="block">
+          <div class="block-head">
+            <span class="label">Incident log</span>
+            <span class="label dim">Last 10</span>
+          </div>
+
+          <div class="table-wrap">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Condition</th>
+                  <th>Telemetry</th>
+                  <th>Top source</th>
+                  <th><span class="sr-only">Action</span></th>
+                </tr>
+              </thead>
+              <tbody id="history-table-body">
+                <tr><td colspan="5" class="empty-table">[ No incidents ]</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+    </main>
+
+    <!-- TERTIARY: pinned to the bottom edge -->
+    <footer class="footbar">
+      <span class="label dim">MQTT + Python + Local LLM + RAG</span>
+      <span class="label dim">SSE /api/stream</span>
+    </footer>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

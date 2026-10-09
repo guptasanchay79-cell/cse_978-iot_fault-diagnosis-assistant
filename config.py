@@ -5,7 +5,21 @@ All system parameters, MQTT settings, physical sensor thresholds,
 and RAG/LLM configurations are maintained in this single source of truth.
 """
 
+import os
 from pathlib import Path
+
+# Load environment variables from .env file if present
+_env_path = Path(__file__).resolve().parent / ".env"
+if _env_path.exists():
+    try:
+        with open(_env_path, "r", encoding="utf-8") as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if _line and not _line.startswith("#") and "=" in _line:
+                    _k, _v = _line.split("=", 1)
+                    os.environ.setdefault(_k.strip(), _v.strip())
+    except Exception:
+        pass
 
 # ==============================================================================
 # 1. Project Directory Paths
@@ -131,3 +145,19 @@ LLM_MODEL_NAME: str = "llama3.2:3b"
 # Inference generation parameters
 LLM_TEMPERATURE: float = 0.1  # Low temperature for strict factual grounding
 LLM_REQUEST_TIMEOUT_SECONDS: float = 45.0
+
+# ==============================================================================
+# 7. Database Persistence Configuration (Docker / PostgreSQL)
+# ==============================================================================
+POSTGRES_DB: str = os.getenv("POSTGRES_DB", "p311_iot_diagnostics")
+POSTGRES_USER: str = os.getenv("POSTGRES_USER", "p311_admin")
+POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "")
+POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "127.0.0.1")
+POSTGRES_PORT: int = int(os.getenv("POSTGRES_PORT", "5432"))
+
+# Database connection and reliability parameters
+DB_CONNECT_TIMEOUT_SECONDS: int = int(os.getenv("DB_CONNECT_TIMEOUT_SECONDS", "2"))
+TELEMETRY_RETENTION_DAYS: int = int(os.getenv("TELEMETRY_RETENTION_DAYS", "7"))
+TELEMETRY_QUEUE_MAXSIZE: int = int(os.getenv("TELEMETRY_QUEUE_MAXSIZE", "1000"))
+TELEMETRY_BATCH_SIZE: int = int(os.getenv("TELEMETRY_BATCH_SIZE", "20"))
+TELEMETRY_BATCH_FLUSH_INTERVAL: float = float(os.getenv("TELEMETRY_BATCH_FLUSH_INTERVAL", "2.0"))

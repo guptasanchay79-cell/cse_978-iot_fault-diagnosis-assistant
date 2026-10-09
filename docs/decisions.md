@@ -100,3 +100,16 @@ This document records all foundational architectural and scoping decisions confi
   - No cloud services, databases, or unnecessary heavy frameworks.
 - **Reason:** Strict adherence to project constraints and Viva explainability.
 - **Reference in Roadmap:** Section 2 & 3 of `prompt.md`.
+
+---
+
+## Decision 10: Containerized Database Persistence Layer
+
+- **Decision:** Use a single containerized PostgreSQL instance (`postgres:16-alpine`) in Docker as a persistence layer only for fault incidents and streaming sensor telemetry.
+  1. **Strictly Decoupled**: The database operates purely as a persistence layer. The real-time pipeline (Simulator → MQTT → Detector → RAG → LLM → Dashboard) never blocks for database operations.
+  2. **Non-Blocking Telemetry Buffer**: Telemetry ingestion uses a non-blocking queue (`put_nowait()`) with batch inserts; if the queue fills, readings are dropped to maintain the 1 Hz sensor loop.
+  3. **Data Retention**: Telemetry readings are pruned to a 7-day window via `prune_old_telemetry()`, executed at startup and hourly by the background writer thread. Diagnoses in `fault_incidents` are preserved indefinitely.
+  4. **Graceful Fallback**: If PostgreSQL is offline, `is_database_available()` activates a circuit breaker (5-second cache), falling back seamlessly to in-memory buffers and `data/diagnoses_log.jsonl`.
+- **Reason:** Provides robust structured storage and queryability across restarts without introducing external cloud dependencies, ORM complexity, or pipeline blocking.
+- **Reference:** `docs/database.md`.
+

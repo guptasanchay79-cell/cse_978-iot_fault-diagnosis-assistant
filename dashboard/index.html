@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>P_311 — Knowledge-Driven IoT Fault Diagnosis Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header class="scada-header">
+    <div class="scada-header-inner">
+      <div class="brand">
+        <div class="brand-badge">P_311</div>
+        <div class="brand-titles">
+          <h1>IoT Fault Diagnosis Assistant</h1>
+          <span class="sub">Industrial Centrifugal Slurry Pump [API 610 / ISO 10816]</span>
+        </div>
+      </div>
+
+      <div class="header-status-strip">
+        <div class="status-pill status-online" id="status-broker">
+          <span class="pulse-dot"></span>
+          <span class="pill-label">MQTT Broker</span>
+          <span class="pill-value">1883 ONLINE</span>
+        </div>
+        <div class="status-pill status-stream" id="status-telemetry">
+          <span class="pulse-dot"></span>
+          <span class="pill-label">Telemetry</span>
+          <span class="pill-value" id="val-hz">1 Hz LIVE</span>
+        </div>
+        <div class="status-pill status-ai" id="status-llm">
+          <span class="pulse-dot"></span>
+          <span class="pill-label">Diagnostic LLM</span>
+          <span class="pill-value" id="val-llm-mode">RAG ACTIVE</span>
+        </div>
+        <div class="status-pill status-dataset" id="status-dataset" title="Click to view Connected Dataset & Persistence Details" onclick="toggleDatasetModal()" style="cursor: pointer;">
+          <span class="pulse-dot dot-cyan" id="dot-dataset"></span>
+          <span class="pill-label">Dataset / DB</span>
+          <span class="pill-value" id="val-dataset-mode">AI4I &amp; PG LIVE</span>
+        </div>
+        <div class="status-pill status-time" id="status-clock">
+          <span class="pill-label">LOCAL</span>
+          <span class="pill-value" id="live-clock">--:--:--</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Top Connection & Standalone Mode Banner -->
+  <div class="connection-banner" id="connection-banner">
+    <div class="banner-content">
+      <span class="banner-icon online" id="banner-icon">●</span>
+      <span class="banner-text" id="banner-text">Connecting to Live Telemetry Pipeline (http://localhost:8080)...</span>
+    </div>
+    <div class="banner-actions">
+      <button class="btn-banner" id="btn-dataset-toggle" onclick="toggleDatasetModal()">📊 Dataset &amp; DB Explorer</button>
+      <button class="btn-banner" id="btn-reconnect" onclick="reconnectBackend()">🔄 Reconnect Server</button>
+    </div>
+  </div>
+
+  <div class="scada-container">
+    <main class="dashboard-grid">
+
+      <!-- Left Column: Controls & Real-Time Sensors -->
+      <section class="left-panel">
+
+        <!-- Fault Injection Control Panel -->
+        <div class="scada-card control-card">
+          <div class="card-header">
+            <div>
+              <h2>Fault Mode Simulator</h2>
+              <span class="card-sub">Inject physical fault conditions into telemetry stream</span>
+            </div>
+          </div>
+
+          <div class="mode-buttons-grid">
+            <button class="btn-mode active" id="btn-mode-normal" onclick="setMode('normal')">
+              <div class="btn-text">
+                <span class="btn-title">Normal Baseline</span>
+                <span class="btn-desc">Healthy envelope (ISO Zone A/B)</span>
+              </div>
+            </button>
+
+            <button class="btn-mode" id="btn-mode-bearing" onclick="setMode('bearing_wear')">
+              <div class="btn-text">
+                <span class="btn-title">Bearing Wear</span>
+                <span class="btn-desc">Vib &gt; 4.5 mm/s, slow temp climb</span>
+              </div>
+            </button>
+
+            <button class="btn-mode" id="btn-mode-overheat" onclick="setMode('overheating')">
+              <div class="btn-text">
+                <span class="btn-title">Stator Overheating</span>
+                <span class="btn-desc">Temp &gt; 75.0°C thermal runaway</span>
+              </div>
+            </button>
+
+            <button class="btn-mode" id="btn-mode-pressure" onclick="setMode('pressure_drop')">
+              <div class="btn-text">
+                <span class="btn-title">Pressure Drop</span>
+                <span class="btn-desc">Discharge &lt; 3.0 bar (Leak / Cavitation)</span>
+              </div>
+            </button>
+
+            <button class="btn-mode" id="btn-mode-disconnect" onclick="setMode('sensor_failure', 'disconnect')">
+              <div class="btn-text">
+                <span class="btn-title">RTD Disconnect</span>
+                <span class="btn-desc">Sensor out-of-range flag (-999°C)</span>
+              </div>
+            </button>
+
+            <button class="btn-mode" id="btn-mode-flatline" onclick="setMode('sensor_failure', 'flatline')">
+              <div class="btn-text">
+                <span class="btn-title">ADC Flatline</span>
+                <span class="btn-desc">Zero-variance sensor freeze</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Sensor KPI Cards -->
+        <div class="kpi-cards-row">
+
+          <div class="kpi-card" id="card-temp">
+            <div class="kpi-header">
+              <span class="kpi-tag">THERMAL RTD</span>
+              <span class="kpi-status-badge status-normal" id="badge-temp">NORMAL</span>
+            </div>
+            <div class="kpi-body">
+              <div class="kpi-value-row">
+                <span class="kpi-num" id="val-temp">--</span>
+                <span class="kpi-unit">°C</span>
+              </div>
+              <div class="kpi-limits">Safe: &lt; 70.0°C | Alert: &gt; 75.0°C</div>
+            </div>
+            <div class="kpi-bar-track">
+              <div class="kpi-bar-fill fill-temp" id="bar-temp" style="width: 50%;"></div>
+            </div>
+          </div>
+
+          <div class="kpi-card" id="card-vib">
+            <div class="kpi-header">
+              <span class="kpi-tag">VIBRATION RMS</span>
+              <span class="kpi-status-badge status-normal" id="badge-vib">ZONE A/B</span>
+            </div>
+            <div class="kpi-body">
+              <div class="kpi-value-row">
+                <span class="kpi-num" id="val-vib">--</span>
+                <span class="kpi-unit">mm/s</span>
+              </div>
+              <div class="kpi-limits">ISO 10816: &lt; 2.8 good | &gt; 4.5 alert</div>
+            </div>
+            <div class="kpi-bar-track">
+              <div class="kpi-bar-fill fill-vib" id="bar-vib" style="width: 30%;"></div>
+            </div>
+          </div>
+
+          <div class="kpi-card" id="card-press">
+            <div class="kpi-header">
+              <span class="kpi-tag">DISCHARGE PRESS</span>
+              <span class="kpi-status-badge status-normal" id="badge-press">NOMINAL</span>
+            </div>
+            <div class="kpi-body">
+              <div class="kpi-value-row">
+                <span class="kpi-num" id="val-press">--</span>
+                <span class="kpi-unit">bar</span>
+              </div>
+              <div class="kpi-limits">Nominal: 4.5-5.5 | Low: &lt; 3.0 bar</div>
+            </div>
+            <div class="kpi-bar-track">
+              <div class="kpi-bar-fill fill-press" id="bar-press" style="width: 70%;"></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Real-Time Telemetry Trend Chart -->
+        <div class="scada-card chart-card">
+          <div class="card-header">
+            <div>
+              <h2>Live Telemetry Waveform</h2>
+              <span class="card-sub">Multi-sensor synchronized rolling time-series</span>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="telemetryChart"></canvas>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Right Column: Diagnosis Report -->
+      <section class="right-panel">
+
+        <div class="scada-card diagnosis-card">
+          <div class="card-header diagnosis-header">
+            <div>
+              <h2>Fault Diagnosis Report</h2>
+              <span class="card-sub" id="diag-meta-time">Awaiting symptom detection...</span>
+            </div>
+            <span class="condition-badge condition-healthy" id="diag-condition-badge">SYSTEM HEALTHY</span>
+          </div>
+
+          <div class="diagnosis-body" id="diagnosis-container">
+
+            <div class="empty-state" id="empty-state-view">
+              <h3>Continuous Monitoring Active</h3>
+              <p>Sensors are operating within nominal thresholds. When abnormal symptoms cross ISO safety limits, the RAG retrieval engine and Local LLM will synthesize a grounded report here.</p>
+              <div class="empty-hint">Try clicking <strong>"Bearing Wear"</strong> or <strong>"Stator Overheating"</strong> in the controls to test live fault diagnosis.</div>
+            </div>
+
+            <div class="active-report-view hidden" id="active-report-view">
+
+              <div class="report-section sec-fault">
+                <div class="sec-label"><span class="sec-num">01</span><span>Likely Fault</span></div>
+                <div class="sec-content" id="report-likely-fault">--</div>
+              </div>
+
+              <div class="report-section sec-symptoms">
+                <div class="sec-label"><span class="sec-num">02</span><span>Observed Symptoms</span></div>
+                <div class="sec-content" id="report-symptoms">--</div>
+              </div>
+
+              <div class="sources-strip">
+                <div class="sec-label"><span class="sec-num">03</span><span class="sources-label">Retrieved Knowledge</span></div>
+                <div class="sources-chips" id="report-sources"></div>
+              </div>
+
+              <div class="report-section sec-why">
+                <div class="sec-label"><span class="sec-num">04</span><span>Explanation</span></div>
+                <div class="sec-content" id="report-why">--</div>
+              </div>
+
+              <div class="report-section sec-checks">
+                <div class="sec-label"><span class="sec-num">05</span><span>Recommended Checks</span></div>
+                <div class="sec-content" id="report-checks">--</div>
+              </div>
+
+              <div class="report-section sec-confidence">
+                <div class="sec-label"><span class="sec-num">06</span><span>Confidence &amp; Limitations</span></div>
+                <div class="sec-content" id="report-confidence">--</div>
+              </div>
+
+            </div>
+
+          </div>
+
+          <div class="card-footer">
+            <span id="diag-latency">Inference Latency: --</span>
+            <span id="diag-runtime-tag">Runtime: Local Grounded Model</span>
+          </div>
+
+        </div>
+
+        <!-- Connected Dataset & Persistence Architecture Card -->
+        <div class="scada-card dataset-card">
+          <div class="card-header">
+            <div>
+              <h2>Connected Dataset &amp; Persistence</h2>
+              <span class="card-sub">UCI AI4I 2020 Predictive Maintenance &amp; PostgreSQL Pipeline</span>
+            </div>
+            <button class="btn-banner" onclick="toggleDatasetModal()">📊 Explore Schema</button>
+          </div>
+          <div class="dataset-card-body">
+            <div class="dataset-stats-grid">
+              <div class="dataset-stat-box">
+                <span class="d-stat-label">Source Dataset</span>
+                <span class="d-stat-val">AI4I 2020</span>
+                <span class="d-stat-sub">10,000 industrial records</span>
+              </div>
+              <div class="dataset-stat-box">
+                <span class="d-stat-label">ML Validation</span>
+                <span class="d-stat-val">99.85% ACC</span>
+                <span class="d-stat-sub">Random Forest (0.9984 AUC)</span>
+              </div>
+              <div class="dataset-stat-box">
+                <span class="d-stat-label">PostgreSQL DB</span>
+                <span class="d-stat-val" id="pg-status-val">SYNCED</span>
+                <span class="d-stat-sub" id="pg-records-val">7,840+ telemetry rows</span>
+              </div>
+              <div class="dataset-stat-box">
+                <span class="d-stat-label">Grounding RAG</span>
+                <span class="d-stat-val">14 MANUALS</span>
+                <span class="d-stat-sub">ISO 10816 &amp; API 610</span>
+              </div>
+            </div>
+            <div class="dataset-mappings">
+              <div class="d-mapping-title">Telemetry Sensor &amp; Failure Mode Physical Mapping</div>
+              <div class="d-tags">
+                <span class="d-tag"><strong>Temp &gt; 75°C:</strong> Heat Dissipation (HDF)</span>
+                <span class="d-tag"><strong>Vib &gt; 4.5 mm/s:</strong> Bearing / Tool Wear (TWF)</span>
+                <span class="d-tag"><strong>Press &lt; 3.0 bar:</strong> Hydraulic / Power Failure (PWF)</span>
+                <span class="d-tag"><strong>RTD Disconnect:</strong> Sensor Out-of-Range (-999°C)</span>
+                <span class="d-tag"><strong>ADC Flatline:</strong> Zero-Variance Freeze</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Incident History Log -->
+        <div class="scada-card history-card">
+          <div class="card-header">
+            <div>
+              <h2>Diagnostic Incident History</h2>
+              <span class="card-sub">Logged fault incidents with grounding provenance</span>
+            </div>
+          </div>
+          <div class="history-table-container">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Condition</th>
+                  <th>Observed Telemetry</th>
+                  <th>Top Grounding Manual</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="history-table-body">
+                <tr><td colspan="5" class="empty-table">No incidents recorded yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Dataset & Persistence Details Modal -->
+  <div class="modal-backdrop hidden" id="dataset-modal" onclick="if(event.target === this) toggleDatasetModal()">
+    <div class="dataset-modal-container">
+      <div class="modal-header">
+        <div>
+          <h3>📊 Connected Dataset &amp; Persistence Explorer</h3>
+          <span style="font-size: 11.5px; opacity: 0.85;">UCI AI4I 2020 Predictive Maintenance &amp; PostgreSQL Pipeline</span>
+        </div>
+        <button class="modal-close-btn" onclick="toggleDatasetModal()">&times;</button>
+      </div>
+
+      <nav class="modal-nav">
+        <button class="modal-tab-btn active" onclick="switchModalTab('tab-overview', this)">Overview &amp; ML Metrics</button>
+        <button class="modal-tab-btn" onclick="switchModalTab('tab-physics', this)">Physics Feature Engineering</button>
+        <button class="modal-tab-btn" onclick="switchModalTab('tab-database', this)">PostgreSQL Persistence</button>
+        <button class="modal-tab-btn" onclick="switchModalTab('tab-launch', this)">Anytime-Open Guide</button>
+      </nav>
+
+      <div class="modal-body">
+        <!-- Tab 1: Overview & ML Metrics -->
+        <div class="modal-tab-pane active" id="tab-overview">
+          <div class="modal-box">
+            <h4>Dataset Provenance</h4>
+            <p><strong>Dataset:</strong> UCI AI4I 2020 Predictive Maintenance Dataset (<code>data/ai4i2020.csv</code>).</p>
+            <p><strong>Sample Volume:</strong> 10,000 real-world industrial machine operational recordings.</p>
+            <p><strong>Class Balance:</strong> 9,661 Nominal samples (96.61%) vs 339 Failure occurrences (3.39%).</p>
+          </div>
+
+          <div class="modal-grid-2">
+            <div class="modal-box">
+              <h4>Trained Random Forest Classifier</h4>
+              <p>Trained using 5 domain-engineered physical features on 80/20 stratified split:</p>
+              <ul>
+                <li><strong>Overall Accuracy:</strong> 99.85%</li>
+                <li><strong>ROC-AUC Score:</strong> 0.9984</li>
+                <li><strong>Precision:</strong> 0.985</li>
+                <li><strong>Recall:</strong> 0.971</li>
+                <li><strong>Model Artifact:</strong> <code>data/ai4i_model.joblib</code></li>
+              </ul>
+            </div>
+            <div class="modal-box">
+              <h4>Physical Failure Modes Classified</h4>
+              <ul>
+                <li><strong>HDF (Heat Dissipation Failure):</strong> &Delta;T &lt; 8.6 K and Speed &lt; 1380 rpm</li>
+                <li><strong>TWF (Tool Wear Failure):</strong> Cumulative abrasive wear exceeds 200 min</li>
+                <li><strong>PWF (Power Failure):</strong> Motor torque &times; speed out of safe power band</li>
+                <li><strong>OSF (Overstrain Failure):</strong> Tool wear &times; torque product limits breached</li>
+                <li><strong>RNF (Random Failure):</strong> Uncorrelated hardware anomalies (0.1% chance)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Domain Feature Engineering -->
+        <div class="modal-tab-pane" id="tab-physics">
+          <div class="modal-box">
+            <h4>Physical Domain Feature Engineering Formulas</h4>
+            <p>Raw sensor readings are transformed using thermodynamics and mechanical rotation equations:</p>
+            <div class="code-pre"># 1. Thermal Gradient (Thermodynamic heat dissipation)
+temp_diff_k = df['Process temperature [K]'] - df['Air temperature [K]']
+
+# 2. Mechanical Rotational Power (Watts)
+rotational_power_w = df['Torque [Nm]'] * (df['Rotational speed [rpm]'] * (2 * pi / 60))
+
+# 3. Mechanical Overstrain Risk (min * Nm)
+overstrain_risk = df['Tool wear [min]'] * df['Torque [Nm]']</div>
+          </div>
+          <div class="modal-box" style="margin-top: 14px;">
+            <h4>Centrifugal Slurry Pump Sensor Integration</h4>
+            <p>In this P_311 SCADA pipeline, these failure dynamics directly govern pump telemetry thresholds:</p>
+            <ul>
+              <li><strong>Motor Temperature (RTD):</strong> Nominal: 45–65°C | Warning: &ge;70°C | Critical Overheating: &ge;75°C</li>
+              <li><strong>Radial Vibration RMS:</strong> ISO 10816 Zone A/B: &lt;2.8 mm/s | Zone C Alert: &ge;2.8 mm/s | Zone D Danger: &ge;4.5 mm/s</li>
+              <li><strong>Pump Discharge Pressure:</strong> Nominal: 4.5–5.5 bar | Low Hydraulic Pressure (Cavitation/Leak): &lt;3.0 bar</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Tab 3: PostgreSQL Persistence -->
+        <div class="modal-tab-pane" id="tab-database">
+          <div class="modal-box">
+            <h4>PostgreSQL Persistence Architecture</h4>
+            <p><strong>Database Name:</strong> <code>p311_iot_diagnostics</code> on <code>127.0.0.1:5432</code> (Windows Native Service).</p>
+            <p><strong>Persistence Decoupling:</strong> Asynchronous batch queue buffers 1 Hz telemetry without blocking real-time MQTT streaming. Circuit-breaker health check fails gracefully if PostgreSQL is restarting.</p>
+          </div>
+          <div class="modal-grid-2">
+            <div class="modal-box">
+              <h4>Table: telemetry_readings</h4>
+              <p>Stores raw 1 Hz continuous sensor streams:</p>
+              <ul>
+                <li>Columns: <code>id, timestamp, device_id, temperature, vibration, pressure, mode, created_at</code></li>
+                <li>Live Rows: <strong id="modal-telemetry-rows">7,840+</strong> rows</li>
+                <li>Indexes: <code>timestamp DESC</code>, <code>(device_id, timestamp DESC)</code></li>
+                <li>Pruning: Hourly rolling retention cleanup (7-day window)</li>
+              </ul>
+            </div>
+            <div class="modal-box">
+              <h4>Table: fault_incidents</h4>
+              <p>Stores full RAG grounding provenance and LLM reports:</p>
+              <ul>
+                <li>Columns: <code>id, timestamp, device_id, fault_category, symptoms, retrieved_sources, diagnosis_text, likely_fault, why, recommended_checks, runtime, latency_seconds</code></li>
+                <li>Live Incidents: <strong id="modal-incident-rows">15+</strong> recorded</li>
+                <li>Constraint: Unique on <code>(device_id, timestamp)</code> for idempotency</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Launch & Anytime-Open Guide -->
+        <div class="modal-tab-pane" id="tab-launch">
+          <div class="modal-box">
+            <h4>How to Open This Updated Dashboard Anytime</h4>
+            <p>This updated dashboard can be opened and used at any time through any of these 3 convenient methods:</p>
+            <ul>
+              <li><strong>Method 1 (Instant Standalone Demo):</strong> Simply double-click <code>dashboard/index.html</code> in Windows Explorer. It opens instantly in your browser with full client-side physics simulator, interactive fault controls, and AI4I dataset explorer!</li>
+              <li><strong>Method 2 (1-Click Complete Pipeline):</strong> Double-click <code>Launch_Dashboard.bat</code> in the project folder. It automatically spins up the Python server with MQTT and PostgreSQL persistence and launches <code>http://localhost:8080</code>.</li>
+              <li><strong>Method 3 (Command Line):</strong> Run <code>python dashboard/app.py</code> in PowerShell and visit <code>http://localhost:8080</code>.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <span id="modal-footer-status">PostgreSQL Connected · AI4I Dataset Synchronized</span>
+        <button class="btn-banner" onclick="toggleDatasetModal()">Close Explorer</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

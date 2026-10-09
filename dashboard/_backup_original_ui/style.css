@@ -1,0 +1,429 @@
+/* P_311 dashboard — industrial monitoring styling.
+   Graphite = structure, warm stone = content, copper = single accent.
+   Green / amber / red are used ONLY to show state. No gradients, glows or decorative motion. */
+
+:root {
+  --graphite-900: #1c2023;
+  --graphite-800: #262b2f;
+  --graphite-700: #343a3f;
+  --graphite-500: #5a6269;
+
+  --bg: #f1efe9;
+  --panel: #fbfaf7;
+  --panel-alt: #efece5;
+  --line: #d8d3c8;
+  --line-strong: #b9b3a5;
+
+  --ink: #1f2326;
+  --ink-2: #51565b;
+  --ink-3: #7b8085;
+
+  --on-dark: #ebe8e1;
+  --on-dark-muted: #a3a8ac;
+
+  --copper: #b0612b;
+  --copper-bg: #f4e6da;
+
+  --ok: #4a7646;
+  --ok-text: #3b6137;
+  --ok-bg: #e3ece0;
+  --warn: #c07a12;
+  --warn-text: #85500a;
+  --warn-bg: #f6e9cf;
+  --crit: #a3271f;
+  --crit-bg: #f3dbd8;
+
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+
+  --radius: 4px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.hidden { display: none !important; }
+
+/* ---------- Header ---------- */
+.scada-header {
+  background: var(--graphite-900);
+  border-bottom: 2px solid var(--copper);
+}
+
+.scada-header-inner {
+  max-width: 1720px;
+  margin: 0 auto;
+  padding: 14px 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.brand { display: flex; align-items: center; gap: 14px; }
+
+.brand-badge {
+  background: var(--copper);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 3px;
+  letter-spacing: 0.04em;
+}
+
+.brand-titles h1 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--on-dark);
+  line-height: 1.25;
+}
+
+.brand-titles .sub {
+  font-size: 12px;
+  color: var(--on-dark-muted);
+}
+
+.header-status-strip { display: flex; align-items: stretch; flex-wrap: wrap; }
+
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px;
+  font-size: 12px;
+  border-left: 1px solid var(--graphite-700);
+}
+.status-pill:first-child { border-left: 0; }
+
+.pulse-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #6f9a6a;
+  flex: none;
+}
+
+.pill-label { color: var(--on-dark-muted); }
+.pill-value { color: var(--on-dark); font-family: var(--font-mono); font-weight: 500; font-size: 12px; }
+
+/* ---------- Layout ---------- */
+.scada-container {
+  max-width: 1720px;
+  margin: 0 auto;
+  padding: 20px 28px 32px;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 1280px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+}
+
+.left-panel, .right-panel { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+/* ---------- Panels ---------- */
+.scada-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 0 rgba(31, 35, 38, 0.04);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: var(--panel-alt);
+  border-bottom: 1px solid var(--line);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.card-header h2 { font-size: 14px; font-weight: 600; color: var(--ink); line-height: 1.3; }
+.card-sub { font-size: 12px; color: var(--ink-3); }
+
+/* ---------- Fault mode controls ---------- */
+.mode-buttons-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 14px 16px 16px;
+}
+
+@media (max-width: 768px) {
+  .mode-buttons-grid { grid-template-columns: 1fr; }
+}
+
+.btn-mode {
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  padding: 9px 12px;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  transition: background-color 0.12s, border-color 0.12s;
+}
+.btn-mode:hover { background: var(--panel-alt); }
+.btn-mode:focus-visible { outline: 2px solid var(--copper); outline-offset: 1px; }
+
+.btn-mode.active {
+  background: var(--copper-bg);
+  border-color: var(--copper);
+  box-shadow: inset 3px 0 0 var(--copper);
+}
+
+.btn-title { display: block; font-size: 13px; font-weight: 600; color: var(--ink); }
+.btn-desc { display: block; font-size: 11.5px; color: var(--ink-2); line-height: 1.35; margin-top: 2px; }
+
+/* ---------- Telemetry readings: one instrument strip ---------- */
+.kpi-cards-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+@media (max-width: 768px) {
+  .kpi-cards-row { grid-template-columns: 1fr; }
+}
+
+.kpi-card {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-left: 1px solid var(--line);
+}
+.kpi-card:first-child { border-left: 0; }
+
+@media (max-width: 768px) {
+  .kpi-card { border-left: 0; border-top: 1px solid var(--line); }
+  .kpi-card:first-child { border-top: 0; }
+}
+
+.kpi-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+
+.kpi-tag {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--ink-2);
+}
+
+.kpi-status-badge {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 2px 7px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.status-normal { background: var(--ok-bg); color: var(--ok-text); }
+.status-warning { background: var(--warn-bg); color: var(--warn-text); }
+.status-critical { background: var(--crit-bg); color: var(--crit); }
+
+.kpi-value-row { display: flex; align-items: baseline; gap: 6px; }
+
+.kpi-num {
+  font-family: var(--font-mono);
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1.1;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+.kpi-unit { font-size: 13px; color: var(--ink-3); }
+
+.kpi-limits { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
+
+.kpi-bar-track { height: 4px; background: var(--line); border-radius: 1px; overflow: hidden; }
+.kpi-bar-fill { height: 100%; background: var(--ok); transition: width 0.4s ease, background-color 0.2s; }
+
+/* Value and bar take the state colour (driven by the badge class JS already sets) */
+.kpi-card:has(.status-warning) .kpi-bar-fill { background: var(--warn); }
+.kpi-card:has(.status-warning) .kpi-num { color: var(--warn-text); }
+.kpi-card:has(.status-critical) .kpi-bar-fill { background: var(--crit); }
+.kpi-card:has(.status-critical) .kpi-num { color: var(--crit); }
+
+/* ---------- Chart ---------- */
+.chart-wrapper { height: 270px; position: relative; padding: 12px 16px 14px; }
+
+/* ---------- Diagnosis report ---------- */
+.diagnosis-card { min-height: 480px; display: flex; flex-direction: column; }
+
+.condition-badge {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 5px 12px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.condition-healthy { background: var(--ok-bg); color: var(--ok-text); border: 1px solid #b7cdb2; }
+.condition-fault { background: var(--crit); color: #fff; border: 1px solid var(--crit); }
+
+.diagnosis-body { flex: 1; display: flex; flex-direction: column; padding: 0 16px; }
+
+.empty-state { margin: auto; max-width: 440px; padding: 36px 8px; }
+.empty-state h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.empty-state p { font-size: 13px; color: var(--ink-2); margin-bottom: 12px; }
+.empty-hint {
+  font-size: 12px;
+  color: var(--ink-2);
+  background: var(--panel-alt);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 8px 12px;
+}
+
+.active-report-view { display: flex; flex-direction: column; }
+
+/* Each report item: label column + content column, ruled like a data sheet */
+.report-section,
+.sources-strip {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+@media (max-width: 900px) {
+  .report-section, .sources-strip { grid-template-columns: 1fr; gap: 6px; }
+}
+
+.sec-label {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.sec-num { font-family: var(--font-mono); font-weight: 400; color: var(--ink-3); }
+
+.sec-content { font-size: 13.5px; color: var(--ink); line-height: 1.55; white-space: pre-line; }
+
+.sec-fault .sec-content { font-size: 15px; font-weight: 600; }
+.sec-fault .sec-num { color: var(--crit); }
+
+.sources-label { font-size: 11px; }
+
+.sources-chips { display: flex; flex-direction: column; min-width: 0; }
+
+.source-chip {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink);
+}
+.source-chip:last-child { border-bottom: 0; }
+.source-chip .src-name { overflow-wrap: anywhere; }
+.source-chip .src-section { color: var(--ink-3); font-family: var(--font-sans); font-size: 12px; }
+.source-chip .score { margin-left: auto; color: var(--ink-2); white-space: nowrap; }
+
+.card-footer {
+  margin-top: auto;
+  padding: 9px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--panel-alt);
+  border-radius: 0 0 var(--radius) var(--radius);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+
+/* ---------- History table ---------- */
+.history-table-container { max-height: 230px; overflow: auto; }
+
+.history-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+
+.history-table th {
+  position: sticky;
+  top: 0;
+  text-align: left;
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  background: var(--panel);
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+}
+
+.history-table td {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  white-space: nowrap;
+}
+.history-table td:nth-child(3) { font-family: var(--font-mono); font-size: 12px; }
+.history-table tbody tr:hover { background: var(--panel-alt); }
+
+.history-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 2px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.btn-inspect {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  padding: 2px 10px;
+  cursor: pointer;
+  transition: background-color 0.12s;
+}
+.btn-inspect:hover { background: var(--panel-alt); }
+.btn-inspect:focus-visible { outline: 2px solid var(--copper); outline-offset: 1px; }
+
+.empty-table { text-align: center; color: var(--ink-3) !important; padding: 20px !important; }
+
+@media (max-width: 640px) {
+  .scada-container { padding: 14px 12px 24px; }
+  .scada-header-inner { padding: 12px; }
+  .status-pill { padding: 4px 10px; }
+  .kpi-num { font-size: 26px; }
+}
