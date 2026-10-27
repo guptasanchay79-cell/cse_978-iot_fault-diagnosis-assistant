@@ -99,15 +99,25 @@ class TelemetrySubscriber:
         port: int = MQTT_BROKER_PORT,
         topic: str = MQTT_TELEMETRY_TOPIC,
         on_reading_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+        persist_to_db: bool = False,
     ) -> None:
         self.host = host
         self.port = port
         self.topic = topic
         self.on_reading_callback = on_reading_callback
+        self.persist_to_db = persist_to_db
 
         self.messages_received: int = 0
         self.valid_messages: int = 0
         self.malformed_messages: int = 0
+
+        self.detector = None
+        if self.persist_to_db:
+            try:
+                from diagnosis.fault_detector import FaultDetector
+                self.detector = FaultDetector()
+            except Exception:
+                pass
 
         self.client = mqtt.Client(
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
@@ -171,6 +181,21 @@ class TelemetrySubscriber:
             data["pressure"],
         )
 
+        if self.persist_to_db:
+            fault_status = "normal"
+            if self.detector is not None:
+                try:
+                    detection = self.detector.process_reading(data)
+                    if detection and detection.get("has_fault"):
+                        fault_status = detection.get("fault_category", "fault_detected")
+                except Exception:
+                    pass
+            try:
+                from database.db import insert_sensor_reading
+                insert_sensor_reading(data, fault_status=fault_status)
+            except Exception as dbe:
+                logger.debug("Database insert failed: %s", dbe)
+
         if self.on_reading_callback is not None:
             try:
                 self.on_reading_callback(data)
@@ -201,6 +226,7 @@ def run_subscriber(
     port: int = MQTT_BROKER_PORT,
     topic: str = MQTT_TELEMETRY_TOPIC,
     max_messages: Optional[int] = None,
+    persist_db: bool = False,
 ) -> int:
     """Run subscriber loop until Ctrl+C or max_messages reached."""
     global _RUNNING
@@ -209,7 +235,7 @@ def run_subscriber(
     signal.signal(signal.SIGINT, _signal_handler)
     signal.signal(signal.SIGTERM, _signal_handler)
 
-    subscriber = TelemetrySubscriber(host=host, port=port, topic=topic)
+    subscriber = TelemetrySubscriber(host=host, port=port, topic=topic, persist_to_db=persist_db)
     try:
         subscriber.start()
         logger.info("Subscriber active. Waiting for telemetry (Press Ctrl+C to stop)...")
@@ -237,6 +263,18 @@ def main() -> int:
     parser.add_argument("--port", type=int, default=MQTT_BROKER_PORT, help="MQTT broker port")
     parser.add_argument("--topic", default=MQTT_TELEMETRY_TOPIC, help="Topic to subscribe")
     parser.add_argument(
+        "--persist-db",
+        action="store_true",
+        default=True,
+        help="Persist valid incoming sensor readings to PostgreSQL sensor_readings table (default: True)",
+    )
+    parser.add_argument(
+        "--no-db",
+        dest="persist_db",
+        action="store_false",
+        help="Disable database persistence",
+    )
+    parser.add_argument(
         "--max-messages",
         type=int,
         default=None,
@@ -248,6 +286,7 @@ def main() -> int:
         port=args.port,
         topic=args.topic,
         max_messages=args.max_messages,
+        persist_db=args.persist_db,
     )
 
 

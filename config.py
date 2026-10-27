@@ -17,7 +17,7 @@ if _env_path.exists():
                 _line = _line.strip()
                 if _line and not _line.startswith("#") and "=" in _line:
                     _k, _v = _line.split("=", 1)
-                    os.environ.setdefault(_k.strip(), _v.strip())
+                    os.environ[_k.strip()] = _v.strip()
     except Exception:
         pass
 
@@ -149,8 +149,8 @@ LLM_REQUEST_TIMEOUT_SECONDS: float = 45.0
 # ==============================================================================
 # 7. Database Persistence Configuration (Docker / PostgreSQL)
 # ==============================================================================
-POSTGRES_DB: str = os.getenv("POSTGRES_DB", "p311_iot_diagnostics")
-POSTGRES_USER: str = os.getenv("POSTGRES_USER", "p311_admin")
+POSTGRES_DB: str = os.getenv("POSTGRES_DB", "iot_fault_diagnosis")
+POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
 POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "")
 POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "127.0.0.1")
 POSTGRES_PORT: int = int(os.getenv("POSTGRES_PORT", "5432"))

@@ -31,6 +31,7 @@ from config import (
     MQTT_TELEMETRY_TOPIC,
     RAG_TOP_K,
 )
+from database.db import insert_diagnosis, insert_sensor_reading, is_database_available
 from diagnosis.fault_detector import FaultDetector
 from llm.client import LocalLLMClient
 from mqtt.mqtt_subscriber import TelemetrySubscriber
@@ -100,6 +101,19 @@ class FaultDiagnosisPipeline:
         """Callback executed for every incoming valid telemetry reading."""
         self.total_readings_received += 1
         fault_data = self.detector.process_reading(reading)
+
+        # Determine predicted fault status from detector
+        fault_status = "normal"
+        if fault_data and fault_data.get("has_fault"):
+            fault_status = fault_data.get("fault_category", "fault_detected")
+
+        # Persist actual sensor reading to PostgreSQL sensor_readings table
+        try:
+            reading_to_save = dict(reading)
+            reading_to_save["fault_status"] = fault_status
+            insert_sensor_reading(reading_to_save, fault_status=fault_status)
+        except Exception as dbe:
+            logger.debug("Database insert skipped/failed for reading: %s", dbe)
 
         # If machine is healthy, remain silent and return
         if not fault_data or not fault_data.get("has_fault"):
@@ -199,6 +213,27 @@ class FaultDiagnosisPipeline:
         # Append to JSONL log
         with open(self.jsonl_log, "a", encoding="utf-8") as f:
             f.write(json.dumps(record) + "\n")
+
+        # Persist to PostgreSQL fault_incidents table
+        try:
+            insert_diagnosis({
+                "timestamp": record["timestamp"],
+                "device_id": record["device_id"],
+                "fault_category": record["fault_category"],
+                "symptoms": record["symptoms"],
+                "readings": record["readings"],
+                "retrieved_sources": record["retrieved_sources"],
+                "diagnosis_text": record["diagnosis_text"],
+                "likely_fault": llm_result.get("sections", {}).get("likely_fault", ""),
+                "why": llm_result.get("sections", {}).get("why", ""),
+                "recommended_checks": llm_result.get("sections", {}).get("recommended_checks", ""),
+                "confidence_limitations": llm_result.get("sections", {}).get("confidence_limitations", ""),
+                "sections": llm_result.get("sections", {}),
+                "runtime": record["llm_runtime"],
+                "latency_seconds": record["latency_seconds"],
+            })
+        except Exception as dbe:
+            logger.warning("Failed to persist diagnosis report to PostgreSQL: %s", dbe)
 
         # Append to human-readable text log
         with open(self.text_log, "a", encoding="utf-8") as f:

@@ -29,7 +29,7 @@ echo.
 echo =====================================================================
 echo  Dashboard running at: http://localhost:8080
 echo  Connected Dataset: UCI AI4I 2020 Predictive Maintenance (10,000 rows)
-echo  PostgreSQL Persistence: p311_iot_diagnostics (telemetry & incidents)
+echo  PostgreSQL Persistence: iot_fault_diagnosis (sensor_readings & incidents)
 echo  To close the server, close the Python process or press Ctrl+C.
 echo =====================================================================
 timeout /t 5 >nul

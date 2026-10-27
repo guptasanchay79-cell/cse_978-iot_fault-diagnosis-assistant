@@ -40,13 +40,16 @@ from config import (
 )
 import paho.mqtt.client as mqtt
 
-from db import (
+from database.db import (
+    get_database_stats,
     get_db_stats,
     get_recent_diagnoses,
+    get_recent_sensor_readings,
     insert_diagnosis,
-    insert_telemetry_batch,
+    insert_sensor_reading,
+    insert_sensor_readings_batch,
     is_database_available,
-    prune_old_telemetry,
+    prune_old_sensor_readings,
 )
 from diagnosis.fault_detector import FaultDetector
 from llm.client import LocalLLMClient
@@ -89,8 +92,33 @@ class DashboardState:
         self.cooldown = 4.0
         self.sse_clients = []
 
-        # Load existing diagnoses log if available
+        # Preload historical sensor readings and diagnoses from database
+        self._load_existing_readings()
         self._load_existing_diagnoses()
+
+    def _load_existing_readings(self):
+        """Preload recent sensor readings from PostgreSQL into chart history."""
+        try:
+            if is_database_available():
+                db_readings = get_recent_sensor_readings(limit=60, chronological=True)
+                if db_readings:
+                    with self.lock:
+                        self.history = [
+                            {
+                                "device_id": r.get("device_id", "pump_centrifugal_01"),
+                                "timestamp": r.get("timestamp"),
+                                "temperature": float(r.get("temperature", 0.0)),
+                                "vibration": float(r.get("vibration", 0.0)),
+                                "pressure": float(r.get("pressure", 0.0)),
+                                "mode": r.get("mode", "normal"),
+                                "fault_status": r.get("fault_status", "normal"),
+                            }
+                            for r in db_readings
+                        ]
+                        self.latest_reading = self.history[-1]
+                    logger.info(f"Loaded {len(self.history)} sensor readings from PostgreSQL database.")
+        except Exception as e:
+            logger.warning(f"Error querying PostgreSQL for initial sensor readings: {e}")
 
     def _load_existing_diagnoses(self):
         # 1. Attempt to load from PostgreSQL persistence layer
@@ -145,6 +173,7 @@ class DashboardState:
                         args=(detection, reading),
                         daemon=True,
                     ).start()
+            return detection
 
     def _run_diagnosis_task(self, detection, reading):
         category = detection.get("fault_category", "unknown")
@@ -237,7 +266,7 @@ def telemetry_producer():
     while state.is_running:
         try:
             reading = state.simulator.step()
-            state.add_reading(reading)
+            detection = state.add_reading(reading)
 
             if mqtt_client and mqtt_client.is_connected():
                 mqtt_client.publish(MQTT_TELEMETRY_TOPIC, json.dumps(reading), qos=0)
@@ -247,6 +276,10 @@ def telemetry_producer():
             try:
                 reading_with_mode = dict(reading)
                 reading_with_mode["mode"] = state.current_mode
+                fault_status = "normal"
+                if detection is not None and detection.get("has_fault", True):
+                    fault_status = detection.get("fault_category", state.current_mode)
+                reading_with_mode["fault_status"] = fault_status
                 telemetry_queue.put_nowait(reading_with_mode)
             except queue.Full:
                 logger.warning("Telemetry persistence queue is full; dropping reading to maintain 1 Hz loop.")
@@ -272,16 +305,16 @@ def telemetry_db_writer_worker():
     """Background worker consuming telemetry queue and writing batches to PostgreSQL.
 
     Retention Policy:
-    - Calls prune_old_telemetry(TELEMETRY_RETENTION_DAYS) once at startup.
-    - Calls prune_old_telemetry(TELEMETRY_RETENTION_DAYS) periodically once per hour (3600 seconds).
+    - Calls prune_old_sensor_readings(TELEMETRY_RETENTION_DAYS) once at startup.
+    - Calls prune_old_sensor_readings(TELEMETRY_RETENTION_DAYS) periodically once per hour (3600 seconds).
     """
     logger.info("Starting background telemetry database writer...")
     last_prune_time = 0.0
     prune_interval = 3600.0  # 1 hour
 
-    # Prune old telemetry at startup
+    # Prune old sensor readings at startup
     try:
-        prune_old_telemetry(TELEMETRY_RETENTION_DAYS)
+        prune_old_sensor_readings(TELEMETRY_RETENTION_DAYS)
         last_prune_time = time.time()
     except Exception as e:
         logger.warning(f"Startup telemetry pruning failed: {e}")
@@ -295,7 +328,7 @@ def telemetry_db_writer_worker():
             now = time.time()
             if now - last_prune_time >= prune_interval:
                 try:
-                    prune_old_telemetry(TELEMETRY_RETENTION_DAYS)
+                    prune_old_sensor_readings(TELEMETRY_RETENTION_DAYS)
                     last_prune_time = now
                 except Exception as pe:
                     logger.warning(f"Hourly telemetry pruning failed: {pe}")
@@ -311,9 +344,9 @@ def telemetry_db_writer_worker():
             now = time.time()
             if len(batch) >= TELEMETRY_BATCH_SIZE or (batch and (now - last_flush_time) >= TELEMETRY_BATCH_FLUSH_INTERVAL):
                 try:
-                    insert_telemetry_batch(batch)
+                    insert_sensor_readings_batch(batch)
                 except Exception as be:
-                    logger.warning(f"Error writing telemetry batch to PostgreSQL: {be}")
+                    logger.warning(f"Error writing sensor readings batch to PostgreSQL: {be}")
                 batch = []
                 last_flush_time = now
 
@@ -422,6 +455,19 @@ class DashboardHTTPHandler(http.server.SimpleHTTPRequestHandler):
             with state.lock:
                 history_data = list(reversed(state.diagnoses_history))
             self.wfile.write(json.dumps(history_data).encode("utf-8"))
+
+        elif parsed.path == "/api/readings":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            query_params = parse_qs(parsed.query)
+            limit = int(query_params.get("limit", [60])[0])
+            readings = get_recent_sensor_readings(limit=limit, chronological=True)
+            if not readings:
+                with state.lock:
+                    readings = list(state.history)
+            self.wfile.write(json.dumps(readings).encode("utf-8"))
 
         elif parsed.path == "/api/stream":
             self.send_response(200)

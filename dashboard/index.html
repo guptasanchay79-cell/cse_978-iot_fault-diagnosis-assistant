@@ -416,17 +416,17 @@ overstrain_risk = df['Tool wear [min]'] * df['Torque [Nm]']</div>
         <div class="modal-tab-pane" id="tab-database">
           <div class="modal-box">
             <h4>PostgreSQL Persistence Architecture</h4>
-            <p><strong>Database Name:</strong> <code>p311_iot_diagnostics</code> on <code>127.0.0.1:5432</code> (Windows Native Service).</p>
+            <p><strong>Database Name:</strong> <code>iot_fault_diagnosis</code> on <code>127.0.0.1:5432</code> (Windows Native Service).</p>
             <p><strong>Persistence Decoupling:</strong> Asynchronous batch queue buffers 1 Hz telemetry without blocking real-time MQTT streaming. Circuit-breaker health check fails gracefully if PostgreSQL is restarting.</p>
           </div>
           <div class="modal-grid-2">
             <div class="modal-box">
-              <h4>Table: telemetry_readings</h4>
-              <p>Stores raw 1 Hz continuous sensor streams:</p>
+              <h4>Table: sensor_readings</h4>
+              <p>Stores raw 1 Hz continuous sensor streams &amp; fault predictions:</p>
               <ul>
-                <li>Columns: <code>id, timestamp, device_id, temperature, vibration, pressure, mode, created_at</code></li>
-                <li>Live Rows: <strong id="modal-telemetry-rows">7,840+</strong> rows</li>
-                <li>Indexes: <code>timestamp DESC</code>, <code>(device_id, timestamp DESC)</code></li>
+                <li>Columns: <code>id, timestamp, device_id, temperature, vibration, pressure, fault_status, mode, created_at</code></li>
+                <li>Live Rows: <strong id="modal-telemetry-rows">--</strong> rows</li>
+                <li>Indexes: <code>timestamp DESC</code>, <code>(device_id, timestamp DESC)</code>, <code>fault_status</code></li>
                 <li>Pruning: Hourly rolling retention cleanup (7-day window)</li>
               </ul>
             </div>
